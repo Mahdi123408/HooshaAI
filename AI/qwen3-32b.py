@@ -1,6 +1,5 @@
 from bs4 import BeautifulSoup
 import requests
-
 from HooshaAI.settings import OPENROUTER_API_KEY
 
 
