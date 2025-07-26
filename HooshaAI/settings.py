@@ -27,6 +27,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+COHERE_API_KEY = "nSva50YgK1EwjQQxopohs5RlFFTardC30dwknK23"
 OPENROUTER_API_KEY = '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'
 QWEN1_5__7B_MODEL_URL = "https://api-inference.huggingface.co/models/Qwen/Qwen1.5-7B-Chat"
 # Application definition

@@ -1,7 +1,7 @@
 from bs4 import BeautifulSoup
 import requests
-from HooshaAI.settings import OPENROUTER_API_KEY
-
+from HooshaAI.settings import OPENROUTER_API_KEY,COHERE_API_KEY
+import cohere
 
 class QWEN3_32B():
     def __init__(self):
@@ -11,6 +11,7 @@ class QWEN3_32B():
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
+        self.co = cohere.Client(COHERE_API_KEY)
 
     def send(self, system_message, prompt):
         json_data = {
@@ -107,8 +108,8 @@ class QWEN3_32B():
         headers = {"User-Agent": "Mozilla/5.0"}
 
         summaries = []
-        for page in range(0, 3):  # 3 صفحه = حدود 30 نتیجه
-            params = {"q": query, "s": page * 50}  # پارامتر s برای صفحه بعد
+        for page in range(0, 4):  # 3 صفحه = حدود 30 نتیجه
+            params = {"q": query, "s": page * 60}  # پارامتر s برای صفحه بعد
             response = requests.get(base_url, params=params, headers=headers)
             soup = BeautifulSoup(response.text, "html.parser")
 
@@ -124,17 +125,50 @@ class QWEN3_32B():
 
         return " ".join(summaries) if summaries else False
 
-    def researching(self, user_text):
+    def research_in_internet(self, user_text):
         research_query = self.find_research_query(user_text)
         result = self.extract_query(research_query)
         if not result[0]:
-            return result[1]
+            return [False, result[1]]
         print(result)
         research_data = self.scrape_duckduckgo(result[1])
         if not research_data:
             return [False, 'محتوای برای موضوع مورد نظر در اینترنت یافت نشد!']
-        return research_data
+        return [True, research_data]
+
+    def researching(self, user_text):
+        research_data = self.research_in_internet(user_text)
+        if not research_data[0]:
+            return [False, research_data[1]]
+
+
+        prompt = f"""شما باید متن خام استخراج‌شده از وب درباره {user_text} را به یک مقاله فارسی یا اینگلیسی (بستگی به زبان دیتای استخراج شده) کامل، رسمی و قابل چاپ تبدیل کنید. 
+        قوانین:
+        1. فقط از اطلاعات موجود در متن استفاده کن. هیچ مطلب جدید اختراع نکن.
+        2. تمام جملات ناقص یا خراب را بازنویسی کن تا معنا پیدا کنند.
+        3. هر عبارت بی‌معنی، خطای تایپی، یا کلمه ناشناخته حذف شود.
+        4. ساختار مقاله داشته باشد: مقدمه، چند تیتر اصلی (دوره تاریخی، جغرافیا، فرهنگ، حکومت‌ها و ...)، نتیجه‌گیری.
+        5. هیچ  علامت اضافی مانند : ; "  استفاده نکن.
+        6. حجم مقاله حداقل به اندازه متن ورودی باشد، حتی اگر نیاز است با توضیح بیشتر از داده‌های همان متن گسترش دهی.
+        7. متن کاملاً روان، رسمی، و بدون تکرار باشد.
+        8. هیچ نظر شخصی یا تحلیل اضافه نکن؛ فقط بازنویسی و ساختاردهی.
+        9. اگر متن استخراج شده اینگلیسی بود خروجی رو اینگلیسی بده و اگه فارسی بود فارسی بده.
+        10. اول زبان متن استخراج شده ای رو که بهت میدم برسی کن اگه اون متن فارسی بود حتما تحقیق رو فارسی بده ولی اگر اینگلیسی بود حتما اینگلیسی بده.
+        11.حجم متن رو کم نکن.
+        متن استخراج شده :
+        
+        {research_data[1]}
+        """
+        print(f'research_data[1] : {research_data[1]}')
+        response = self.co.generate(
+            model="command-r-plus",
+            prompt=prompt,
+            max_tokens=1700,
+            temperature=0.5
+        )
+        return response.generations[0].text
 
 
 q3 = QWEN3_32B()
-print(q3.researching('اصفهان'))
+print(q3.researching('تاریخ اصفهان'))
+
