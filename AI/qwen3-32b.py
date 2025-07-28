@@ -142,18 +142,23 @@ class QWEN3_32B():
         if not research_data[0]:
             return [False, research_data[1]]
 
-        prompt = f"""You will receive a raw extracted text from the web. Your task is to rewrite and organize it into a well-structured academic research article following these rules:
+        prompt = f"""You will receive a raw extracted text from the web. Your task is to rewrite and organize it into a comprehensive, well-structured academic research article following these rules:
 
 1. First, detect the language of the input text (only English or Persian).
 2. If the text is in Persian, write the article in Persian. If the text is in English, write it in English.
 3. Do not mention the detected language and do not include any explanations about what you did.
 4. The output must only contain the research article, starting with a proper title.
-5. The article must have a clear academic structure: Title, Introduction, multiple main sections with headings, and a Conclusion.
+5. The article must have a clear academic structure: Title, Introduction, multiple main sections with detailed headings and subheadings, and a Conclusion.
 6. Do NOT use any extra symbols such as #, *, :, or markdown formatting.
-7. The article must be AT LEAST the same length as the input text, and preferably longer. If the input text is short, expand it by adding clarifications, historical context, or more detailed descriptions using the same information from the original text. The final output should never be shorter than the input. If the input text is 3 pages, your output should also be at least 3 pages.
-8. All sentences must be grammatically correct, formal, and coherent. Fix incomplete or broken sentences and remove any meaningless phrases.
-9. Do not add your own analysis or opinions. Use only the information from the given text.
-10. In Persian output, do not use any English words or foreign terms.
+7. The article MUST be at least the same length as the input text and preferably much longer. If the input is short, expand it significantly by adding clarifications, historical context, botanical characteristics, cultural background, medical uses, and modern scientific insights using the same information from the original text.
+8. The final article MUST be a minimum of 2000 words (or as close as possible if the input is very short).
+9. All sentences must be grammatically correct, formal, and coherent. Fix incomplete or broken sentences and remove any meaningless phrases.
+10. Do not add personal opinions or fabricated information beyond what is necessary for elaboration. Use the given data and general accepted scientific or historical context if needed.
+11. In Persian output, do not use any English words or foreign terms. In English output, write in clear academic English.
+12. Ensure the article uses approximately 70% or more of the original word count from the input and significantly expands it if necessary.
+13. Include detailed sections such as: Description of the plant, Morphological characteristics, Medicinal properties in traditional medicine, Active chemical compounds, Modern pharmacological applications, Methods of use, Dosage, Safety and precautions, Historical and cultural significance.
+14. Do NOT summarize or compress the text. Elaborate on every concept as much as possible.
+15. The final text must resemble a formal academic research paper or an extended educational article.
 
 Input text:
 {research_data[1]}
@@ -163,8 +168,8 @@ Input text:
         response = self.co.generate(
             model="command-r-plus",
             prompt=prompt,
-            max_tokens=1700,
-            temperature=0.5
+            max_tokens=6000,
+            temperature=0.7
         )
         return response.generations[0].text
 
