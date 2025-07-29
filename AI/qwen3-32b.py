@@ -7,11 +7,6 @@ import cohere
 class Command:
     def __init__(self):
         self.api_key = COHERE_API_KEY
-        self.session_id = None
-        self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
         self.co = cohere.ClientV2(self.api_key)
         self.co1 = cohere.Client(COHERE_API_KEY)
 
