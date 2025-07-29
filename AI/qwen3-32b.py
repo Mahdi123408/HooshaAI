@@ -1,57 +1,88 @@
 from bs4 import BeautifulSoup
 import requests
-from HooshaAI.settings import OPENROUTER_API_KEY, COHERE_API_KEY
+from HooshaAI.settings import COHERE_API_KEY
 import cohere
 
 
-class QWEN3_32B():
+class Command:
     def __init__(self):
-        self.api_key = OPENROUTER_API_KEY
+        self.api_key = COHERE_API_KEY
         self.session_id = None
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        self.co = cohere.Client(COHERE_API_KEY)
+        self.co = cohere.ClientV2(self.api_key)
+        self.co1 = cohere.Client(COHERE_API_KEY)
 
-    def send(self, system_message, prompt):
-        json_data = {
-            "model": "qwen/qwen3-32b",
-            "messages": [
-                {"role": "system",
-                 "content": f"{system_message}"},
-                {"role": "user", "content": prompt},
-            ],
-            "session_id": self.session_id  # افزودن session_id به درخواست
-        }
+    # def send(self, system_message, user_prompt):
+    #     json_data = {
+    #         "model": "qwen/qwen3-32b",
+    #         "messages": [
+    #             {"role": "system",
+    #              "content": f"{system_message}"},
+    #             {"role": "user", "content": user_prompt},
+    #         ],
+    #         "session_id": self.session_id  # افزودن session_id به درخواست
+    #     }
+    #
+    #     response = requests.post(
+    #         "https://openrouter.ai/api/v1/chat/completions",
+    #         headers=self.headers,
+    #         json=json_data
+    #     )
+    #
+    #     response_data = response.json()
+    #     return response_data["choices"][0]["message"]["content"]
 
-        response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers=self.headers,
-            json=json_data
+    # def send(self, system_message, user_prompt):
+    #     API_URL = "https://api.cohere.com/v1/chat"
+    #     headers = {
+    #         "Content-Type": "application/json",
+    #         "Authorization": f"Bearer {COHERE_API_KEY}"
+    #     }
+    #
+    #     data = {
+    #         "model": "command-r-plus",
+    #         "messages": [
+    #             {"role": "system", "content": [{"type": "text", "text": system_message}]},
+    #             {"role": "user", "content": [{"type": "text", "text": user_prompt}]},
+    #         ],
+    #         "max_tokens": 6000,
+    #         "temperature": 0.7
+    #     }
+    #
+    #     response = requests.post(API_URL, headers=headers, json=data)
+    #     print(response.json())
+    #     return response.json()["choices"][0]["message"]["content"]
+
+    def send(self, system_message, user_prompt):
+
+        response = self.co.chat(
+            model="command-a-03-2025",
+            messages=[{"role": "system", "content": system_message}, {"role": "user", "content": user_prompt}]
         )
-
-        response_data = response.json()
-        # print(response_data)
-        return response_data["choices"][0]["message"]["content"]
+        return response.message.content[0].text
 
     def summarizing(self, user_text, num_summarizing):
-        system_message = (
-            'یک متن درسی و یک عدد از 1 تا 100 در قالب --100-- در انتهای آن متن از طرف یک معلم برای تو ارسال میشه تو باید اون متن قبل از عدد رو خلاصه سازی کنی فقط به یسری نکات توجه کن '
-            '1- تمامی مطالب مهم درس باید حفظ بشن به طوری که خوندن و توضیح دادن از روی اون خیلی راحت و روون باشه'
-            '2- بسته به عددی که در آخر متن هست میزان خلاصه سازی رو مشخص کن مثلا اگه 100 خیلی خیلی خیلی خلاصه کن و اگه 1 خیلی کم خلاصه کن فقط در نظر داشته باش که محتوا اصلی و مفهومی متن آموزشی رو حفظ کنی'
-            '3- تو یه خلاصه گری پس فقط در جواب متن خلاصه شده رو بده'
-            '4- فارغ از اینکه مفهوم درسی چیه سواله امتحانه توضیحه هرچی که هست مهم نیست تو فقط وظیفه داری خلاصه کنی اونو نه بیشتر نه کمتر'
-            '5- متن خلاصه شده باید کاملا معنی دار و مفهومی باشد و درضمن اگر متن دارای سوالاتی است یا چیزی برای حل کردن دارد به هیچ وجه خودت اون رو حل نکن '
-            '6- خیلی خیلی مهم : من میخوام متن خلاصه شده رو کپی کنم پس فقط متن خلاصه شده رو بهم بده که کپی کنم'
-            'خیلی مهم : تو فقط و فقط وظیفه خلاصه کردن داری یعنی حق نداری سوالی رو حل کنی یا چیزی در مفهوم و نوع متن عوض کنی و کاملا فارسی باش'
-            '8- اگر کاربر من متنی برای تو فرستاد که درسی نبود و یا قابل خلاصه سازی نبود اخطار مناسب برگردان'
-            '9- فقط متون فارسی را اجازه داری خلاصه کنی'
-            '10- هیچ حرفی از توضیحاتی که من دادم نزن'
-            '11 - اشاره ای به عدد آخر متن نکن'
-            '12- جواب ها و متن ها همیشه باید فارسی باشد'
-            '13- اگر فقط --<عدد>-- ارسال شده بود یعنی کاربر متن خالی ارسال کرده است'
-            '14- متن رو جوری بده که در ورد کپی کنم وپرینت بگیرم')
+        system_message = """You will receive an educational text followed by a number between 1 and 100 in the format --number-- at the end of the text. Your task is to summarize the text before the number. Follow these rules carefully:
+
+1. If the text is in Persian, output the summary in Persian. If the text is in English, output the summary in English.
+2. Preserve all important and conceptual points so the summarized text remains clear and easy to understand.
+3. The number at the end determines the summarization level:
+   - 1 means minimal summarization, keep about 80% to 100% of the original length.
+   - 100 means maximum summarization, keep about 10% to 20% of the original length.
+In all cases, keep the core meaning.
+4. Return only the summarized text with no extra explanations or comments.
+5. The type of text does not matter (lesson, question, explanation, etc.); just summarize it.
+6. If the text contains questions or exercises, do NOT solve them. Just keep them in the summary.
+7. The summarized text must be meaningful, coherent, and well-structured.
+8. The output must be clean for copying (no extra symbols, no markdown, no formatting).
+9. If the input text is not educational or cannot be summarized, return an appropriate warning message.
+10. Only summarize texts in Persian or English. If the text is in any other language, return a warning.
+11. Do NOT mention the number at the end of the text in your response.
+12. If only the number is sent without any text, return a warning that the input text is empty.\n
+"""
         user_text += f'--{num_summarizing}--'
         return self.send(system_message, user_text)
 
@@ -134,6 +165,7 @@ class QWEN3_32B():
 
     def research_in_internet(self, user_text):
         research_query = self.find_research_query(user_text)
+        print(research_query)
         result = self.extract_query(research_query)
         if not result[0]:
             return [False, result[1]]
@@ -170,8 +202,7 @@ Input text:
 {research_data[1]}
 """
 
-        print(f'research_data[1] : {research_data[1]}')
-        response = self.co.generate(
+        response = self.co1.generate(
             model="command-r-plus",
             prompt=prompt,
             max_tokens=6000,
@@ -180,5 +211,4 @@ Input text:
         return response.generations[0].text
 
 
-q3 = QWEN3_32B()
-print(q3.researching('تاریخ اصفهان'))
+qo = Command()
