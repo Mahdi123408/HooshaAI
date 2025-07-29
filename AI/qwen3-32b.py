@@ -206,4 +206,4 @@ Input text:
         return response.generations[0].text
 
 
-qo = Command()
+co = Command()
