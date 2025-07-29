@@ -126,6 +126,12 @@ class QWEN3_32B():
 
         return " ".join(summaries) if summaries else False
 
+    def count_words(self, text):
+        if not text:
+            return 0
+        words = text.strip().split()
+        return len(words)
+
     def research_in_internet(self, user_text):
         research_query = self.find_research_query(user_text)
         result = self.extract_query(research_query)
@@ -151,7 +157,7 @@ class QWEN3_32B():
 5. The article must have a clear academic structure: Title, Introduction, multiple main sections with detailed headings and subheadings, and a Conclusion.
 6. Do NOT use any extra symbols such as #, *, :, or markdown formatting.
 7. The article MUST be at least the same length as the input text and preferably much longer. If the input is short, expand it significantly by adding clarifications, historical context, botanical characteristics, cultural background, medical uses, and modern scientific insights using the same information from the original text.
-8. The final article MUST be a minimum of 2000 words (or as close as possible if the input is very short).
+8. The final article MUST be a minimum of {self.count_words(research_data[1]) - 100} words (or as close as possible if the input is very short).
 9. All sentences must be grammatically correct, formal, and coherent. Fix incomplete or broken sentences and remove any meaningless phrases.
 10. Do not add personal opinions or fabricated information beyond what is necessary for elaboration. Use the given data and general accepted scientific or historical context if needed.
 11. In Persian output, do not use any English words or foreign terms. In English output, write in clear academic English.
@@ -175,4 +181,4 @@ Input text:
 
 
 q3 = QWEN3_32B()
-print(q3.researching('tulip flower'))
+print(q3.researching('تاریخ اصفهان'))
