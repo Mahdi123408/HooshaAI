@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 import requests
 from HooshaAI.settings import COHERE_API_KEY
 import cohere
+import json
 
 
 class Command:
@@ -9,6 +10,32 @@ class Command:
         self.api_key = COHERE_API_KEY
         self.co = cohere.ClientV2(self.api_key)
         self.co1 = cohere.Client(COHERE_API_KEY)
+        self.exmp_usr_data_for_generate_teaching_plans = {
+            "teacher_language": "فارسی",
+            "lesson_info": {
+                "lesson_name": "ریاضی",
+                "topic": "معادله درجه دوم",
+                "grade_level": "پایه نهم",
+                "learning_objectives": "دانش‌آموزان بتوانند معادله درجه دوم را حل کنند",
+                "duration": "45 دقیقه",
+                "content_type": "ترکیبی"
+            },
+            "student_info": {
+                "average_level": "متوسط",
+                "age_group": "14 سال",
+                "language": "فارسی",
+                "special_needs": "ندارد",
+                "class_size": 25
+            },
+            "teacher_preferences": {
+                "preferred_method": "تعاملی",
+                "available_tools": ["ویدئو پروژکتور", "کامپیوتر"],
+                "internet_access": True,
+                "output_type": ["طرح درس کامل", "فعالیت یا تمرین"],
+                "restrictions": "روش سخنرانی طولانی استفاده نشود",
+                "approach": "یادگیری فعال"
+            }
+        }
 
     # def send(self, system_message, user_prompt):
     #     json_data = {
@@ -216,7 +243,58 @@ Input text:
         questions = self.send(system_message, user_text)
         return questions
 
+    def generate_teaching_plans(self, user_data, count):
+        system_message = f"""
+        You are an expert in instructional design and lesson planning. Your task is to design {count} different, complete teaching approaches for a teacher based on the provided JSON data. Follow these steps:
+
+        1. Input Validation:
+        - Check if all required fields are present and contain valid data:
+          teacher_language
+          lesson_info: lesson_name, topic, grade_level, learning_objectives, duration, content_type
+          student_info: average_level, age_group, language, class_size
+          teacher_preferences: preferred_method
+        - The field output_type inside teacher_preferences is optional. If it exists, accept any value as provided by the user without restrictions.
+        - If any required field is missing or empty, return this exact message in the teacher_language:
+          "The provided information is incomplete or invalid. Please provide all required details correctly."
+        - Do not proceed to design if validation fails.
+        
+        2. Output Language:
+        - Use the language specified in teacher_language for the entire response.
+        
+        3. Generate Teaching Designs:
+        - Provide {count} different teaching approaches, each including:
+          Title for the approach
+          A short description explaining the approach
+          A lesson flow (step-by-step activities)
+          Materials needed (based on available tools)
+          If output_type exists and includes any exercise or additional content, add that in the design.
+        - Ensure all designs align with:
+          The subject, topic, grade level, and learning objectives
+          Student characteristics (age, level, language)
+          Teacher’s preferences (method, restrictions, approach)
+          Available tools and internet access
+        
+        4. Output Structure:
+        - Present the {count} approaches clearly separated as:
+          Approach 1: [Title]
+          Description:
+          Lesson Flow:
+          Materials:
+          Activities (only if applicable):
+        
+        5. Rules:
+        - Do not use external knowledge beyond what’s in the provided data.
+        - Keep each approach practical and detailed enough for real classroom use.
+        - Make designs engaging and adapted to student needs and teacher preferences.
+        
+        If validation passes, start with:
+        "Here are {count} complete teaching approaches for your lesson:"
+        """
+        user_data = self.exmp_usr_data_for_generate_teaching_plans #for test
+        teaching_plans = self.send(system_message, json.dumps(user_data, ensure_ascii=False))
+        return teaching_plans
+
 
 co = Command()
 
-print(co.question_design(co.researching('History of Isfahan'), 12, 90))
+print(co.generate_teaching_plans('1', 2))
