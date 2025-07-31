@@ -119,7 +119,6 @@ In all cases, keep the core meaning.
         }
         response = requests.get(url, params=params)
         data = response.json()
-        print(data)
         # استخراج خلاصه از Abstract و RelatedTopics
         snippets = []
         if data.get("AbstractText"):
@@ -160,11 +159,9 @@ In all cases, keep the core meaning.
 
     def research_in_internet(self, user_text):
         research_query = self.find_research_query(user_text)
-        print(research_query)
         result = self.extract_query(research_query)
         if not result[0]:
             return [False, result[1]]
-        print(result)
         research_data = self.scrape_duckduckgo(result[1])
         if not research_data:
             return [False, 'محتوای برای موضوع مورد نظر در اینترنت یافت نشد!']
@@ -206,7 +203,20 @@ Input text:
         return response.generations[0].text
 
     def question_design(self, user_text, count, difficulty):
-        system_message = ''
+        system_message = f"""
+        You are a question creator who generates questions only from the Persian and English texts provided by my user, following these rules:
+        1. The difficulty level of the questions is {difficulty} out of 100.
+        2. You must create {count} questions.
+        3. Questions must be completely logical and clear.
+        4. Only use the text provided by the user to create questions, and ensure that the answers are fully contained within that text.
+        5. In the response, only provide the questions without adding any extra words or sentences.
+        6. The text provided by the user must have enough content to create questions. If it does not, return an appropriate warning message instead of creating questions.
+        """
+
+        questions = self.send(system_message, user_text)
+        return questions
 
 
 co = Command()
+
+print(co.question_design(co.researching('History of Isfahan'), 12, 90))
