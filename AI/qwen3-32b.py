@@ -205,5 +205,8 @@ Input text:
         )
         return response.generations[0].text
 
+    def question_design(self, user_text, count, difficulty):
+        system_message = ''
+
 
 co = Command()
