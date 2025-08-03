@@ -1,5 +1,7 @@
 from rest_framework.request import Request
 from authentication.jwt import decode_and_validate_token
+from user.models import CustomUser
+from django.db.models import Q
 
 def get_authenticated_user_from_request(request: Request):
     auth_header = request.headers.get('Authorization')
@@ -11,3 +13,21 @@ def get_authenticated_user_from_request(request: Request):
         return user
     else:
         return None
+
+
+def authenticate_user(data):
+    identifier = data.get('username') or data.get('email')
+    password = data.get('password')
+
+    if not identifier or not password:
+        return None
+
+    try:
+        user = CustomUser.objects.get(Q(username=identifier) | Q(email=identifier))
+    except CustomUser.DoesNotExist:
+        return None
+
+    if user.check_password(password) and user.is_active:
+        return user
+
+    return None
