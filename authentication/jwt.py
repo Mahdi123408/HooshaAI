@@ -60,10 +60,8 @@ def create_refresh_token(user):
     return token
 
 
-# دیکد و اعتبارسنجی JWT
 def decode_and_validate_token(token: str, expected_type: str):
     try:
-        # حذف Bearer
         parts = token.split(' ')
         if len(parts) != 2 or parts[0].lower() != "bearer":
             return None, "invalid_format"
@@ -76,11 +74,9 @@ def decode_and_validate_token(token: str, expected_type: str):
     except InvalidTokenError:
         return None, "invalid"
 
-    # بررسی نوع
     if payload.get("type") != expected_type:
         return None, "wrong_type"
 
-    # جستجو در دیتابیس
     token_id = payload.get("jti")
     if expected_type == "at":
         token_obj = AccessToken.objects.filter(token=token, token_id=token_id).first()
