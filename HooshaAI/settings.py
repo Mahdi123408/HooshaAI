@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+from datetime import timedelta
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -21,6 +21,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-!7d3n0j0$^(b^&t)i1#30r3b^4+mao#m5*pta9*sod6(o-gc-x'
+JWT_SECRET = 'kLxvJf0xg0GB7pbEukd6uE1Q9T9g4It0lJ9j5dT5r9UoYvXhF1zSgQ3f6JpM7aCr8oNqRkV2eX4tWzT6hR8yA9'
+
+CUSTOM_ACCESS_TOKEN_NAME = 'Authorization'
+
+INDEX_0_AUTHORIZATION = 'Bearer'
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=3),
+}
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -40,7 +50,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'setting.apps.SettingConfig',
-    'user.apps.UserConfig'
+    'user.apps.UserConfig',
+    'authentication.apps.AuthenticationConfig'
 ]
 
 MIDDLEWARE = [

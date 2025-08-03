@@ -1,4 +1,7 @@
+from django.utils import timezone
+
 from django.db import models
+
 from setting.models import Role
 from django.contrib.auth.hashers import make_password, check_password
 
@@ -29,3 +32,8 @@ class CustomUser(models.Model):
 
     def check_password(self, raw_password):
         return check_password(raw_password, self.password)
+
+    def active_sessions_count(self):
+        from authentication.models import RefreshToken
+        now = timezone.now()
+        return RefreshToken.objects.filter(user=self, expires_at__gt=now).count()
