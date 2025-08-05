@@ -6,7 +6,6 @@ from authentication.models import AccessToken, RefreshToken
 from django.conf import settings
 from jwt import ExpiredSignatureError, InvalidTokenError
 
-# ✅ ساخت Access Token
 def create_access_token(user):
     token_id = str(uuid.uuid4())
     now = timezone.now()
@@ -33,7 +32,7 @@ def create_access_token(user):
     return token
 
 
-# ✅ ساخت Refresh Token
+
 def create_refresh_token(user):
     token_id = str(uuid.uuid4())
     now = timezone.now()
