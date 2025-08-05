@@ -5,7 +5,7 @@ from django.http import HttpRequest
 from authentication import auth
 from HooshaAI.settings import CUSTOM_ACCESS_TOKEN_NAME
 from rest_framework.response import Response
-from authentication.serializers import UserViewSerializer
+from authentication.serializers import UserViewSerializer, CustomUserCreateSerializer
 from rest_framework import status
 from authentication import jwt
 
@@ -77,6 +77,19 @@ class UserAPIView(APIView):
                     }
                 }
                 return Response(data=data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        else:
+            data = {
+                'errors': {
+                    'fa': [
+                        'نشست شما اعتبار ندارد مجددا وارد شوید!',
+                    ],
+                    'en': [
+                        'Your session is invalid. Please log in again!',
+                    ]
+                }
+            }
+            return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 class LoginAPIView(APIView):
@@ -139,6 +152,14 @@ class LoginAPIView(APIView):
                 }
             }
             return Response(data, status=status.HTTP_400_BAD_REQUEST)
+        if user.active_sessions_count() >= user.role.count_access_token:
+            data = {
+                'errors': {
+                        'fa': ['ورود ناموفق! تعداد نشست های ممکن شما تکمیل شده است! لطفا ابتدا یکی را غیرفعال کنید تا امکان ورود جدید اضافه شود!', ],
+                    'en': ['Login failed! You have reached the maximum number of active sessions. Please deactivate one before starting a new session!', ]
+                }
+            }
+            return Response(data, status=status.HTTP_400_BAD_REQUEST)
         data = {
             'access': jwt.create_access_token(user),
             'refresh': jwt.create_refresh_token(user),
@@ -163,9 +184,7 @@ class RegisterAPIView(APIView):
                                             ),
                 'full_name': openapi.Schema(type=openapi.TYPE_STRING, description='نام کامل',
                                             ),
-                'phone': openapi.Schema(type=openapi.TYPE_STRING, description='شماه همراه'),
-                'id_referral': openapi.Schema(type=openapi.TYPE_STRING, description='یوزر نیم کاربری که دعوت داده'),
-            },
+                'phone': openapi.Schema(type=openapi.TYPE_STRING, description='شماه همراه')            },
             required=['username', 'email', 'password', 'password2', 'full_name', 'phone']
         ),
         responses={
@@ -200,11 +219,11 @@ class RegisterAPIView(APIView):
         serializer = CustomUserCreateSerializer(data=data)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
-            sms_sended = SmsUserVerify.objects.filter(key=user[1]).first()
+            # sms_sended = SmsUserVerify.objects.filter(key=user[1]).first()
             return Response(data={
                 'user': serializer.validated_data,
-                'key': user[1],
-                'time': sms_sended.last_send_at + settings.SMS_CODE_LIFETIME + timedelta(hours=3, minutes=30)
+                # 'key': user[1],
+                # 'time': sms_sended.last_send_at + settings.SMS_CODE_LIFETIME + timedelta(hours=3, minutes=30)
             }, status=status.HTTP_201_CREATED)
         else:
             return Response(data="Register Failed", status=status.HTTP_400_BAD_REQUEST)

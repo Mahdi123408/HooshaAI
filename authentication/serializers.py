@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from user.models import CustomUser
 from utils.validators import validate_phone
-
+from setting.models import Role
+import re
 class UserViewSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
@@ -71,6 +72,8 @@ class CustomUserCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop('password2')
+        role = Role.objects.get(dev_name='b')
+        validated_data['role'] = role
         user = CustomUser.objects.create(**validated_data)
         user.set_password(user.password)
         return user

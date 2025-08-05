@@ -9,7 +9,7 @@ from jwt import ExpiredSignatureError, InvalidTokenError
 def create_access_token(user):
     token_id = str(uuid.uuid4())
     now = timezone.now()
-    exp = now + settings.ACCESS_TOKEN_LIFETIME
+    exp = now + settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME']
 
     payload = {
         "jti": token_id,
@@ -36,7 +36,7 @@ def create_access_token(user):
 def create_refresh_token(user):
     token_id = str(uuid.uuid4())
     now = timezone.now()
-    exp = now + settings.REFRESH_TOKEN_LIFETIME
+    exp = now + settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME']
 
     payload = {
         "jti": token_id,
@@ -84,5 +84,8 @@ def decode_and_validate_token(token: str, expected_type: str):
 
     if not token_obj or not token_obj.user.is_active:
         return None, "not_found"
+
+    if token_obj.is_expired():
+        return None, "expired"
 
     return token_obj.user, "valid"
