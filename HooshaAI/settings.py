@@ -15,7 +15,6 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -37,9 +36,12 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+OPENAI_API_KEY = "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"
 COHERE_API_KEY = "nSva50YgK1EwjQQxopohs5RlFFTardC30dwknK23"
+CLAUDE_API_KEY = "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"
 OPENROUTER_API_KEY = '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'
 QWEN1_5__7B_MODEL_URL = "https://api-inference.huggingface.co/models/Qwen/Qwen1.5-7B-Chat"
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -52,7 +54,9 @@ INSTALLED_APPS = [
     'setting.apps.SettingConfig',
     'user.apps.UserConfig',
     'authentication.apps.AuthenticationConfig',
-    'drf_yasg'
+    'drf_yasg',
+    'AIchat.apps.AichatConfig',
+    'channels'
 ]
 
 MIDDLEWARE = [
@@ -85,7 +89,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'HooshaAI.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
@@ -95,7 +98,6 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -115,7 +117,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
@@ -126,7 +127,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
