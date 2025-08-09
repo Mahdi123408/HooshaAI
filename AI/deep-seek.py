@@ -1,16 +1,13 @@
 from bs4 import BeautifulSoup
 import requests
-from HooshaAI.settings import OPENAI_API_KEY
+from HooshaAI.settings import DEEPSEEK_API_KEY
 from openai import OpenAI
 import json
 
 
-class Claude:
+class DeepSeekChat:
     def __init__(self):
-        self.api_key = OPENAI_API_KEY
-        self.client = OpenAI(
-            api_key=OPENAI_API_KEY,
-        )
+        # مثال داده‌های ورودی برای تولید طرح درس
         self.exmp_usr_data_for_generate_teaching_plans = {
             "teacher_language": "فارسی",
             "lesson_info": {
@@ -37,14 +34,29 @@ class Claude:
                 "approach": "یادگیری فعال"
             }
         }
+        self.client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com/v1")
 
     def send(self, system_message, user_prompt):
-        response = self.client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            max_tokens=3000,
-            messages=[{"role": "system", "content": system_message}, {"role": "user", "content": user_prompt}]
-        )
-        return response.choices[0].message.content
+
+        try:
+            response = self.client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": user_prompt},
+                ],
+                stream=False
+            )
+            response_data = response.json()
+
+            if response.status_code == 200:
+                return response_data["choices"][0]["message"]["content"]
+            else:
+                return f"Error: {response_data.get('error', 'Unknown error')}"
+
+        except Exception as e:
+            return f"API Request Failed: {str(e)}"
+
     def summarizing(self, user_text, num_summarizing):
         system_message = """You will receive an educational text followed by a number between 1 and 100 in the format --number-- at the end of the text. Your task is to summarize the text before the number. Follow these rules carefully:
 
@@ -254,6 +266,6 @@ Input text:
         return teaching_plans
 
 
-co = Claude()
+co = DeepSeekChat()
 
 print(co.generate_teaching_plans('1', 2))

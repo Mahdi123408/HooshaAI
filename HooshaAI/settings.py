@@ -36,6 +36,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+DEEPSEEK_API_KEY = "sk-6b41f34476f846e68896749513fc2e1d"
 OPENAI_API_KEY = "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"
 COHERE_API_KEY = "nSva50YgK1EwjQQxopohs5RlFFTardC30dwknK23"
 CLAUDE_API_KEY = "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"
@@ -56,7 +57,8 @@ INSTALLED_APPS = [
     'authentication.apps.AuthenticationConfig',
     'drf_yasg',
     'AIchat.apps.AichatConfig',
-    'channels'
+    'channels',
+    'chat.apps.ChatConfig'
 ]
 
 MIDDLEWARE = [
