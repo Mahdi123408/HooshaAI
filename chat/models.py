@@ -384,16 +384,15 @@ class Message(models.Model):
     delete_date = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        ordering = ['-date']
+        ordering = ['-date', '-id']
         indexes = [
-            models.Index(fields=['chat', 'date']),
+            models.Index(fields=['chat', 'date', 'id']),
             models.Index(fields=['sender', 'date']),
             models.Index(fields=['parent']),
             models.Index(fields=['is_pinned']),
             models.Index(fields=['sticker']),
             models.Index(fields=['gif']),
         ]
-
     def __str__(self):
         return f"Message in {self.chat} by {self.sender or self.sender_chat}"
 

@@ -25,8 +25,8 @@ class ChatManagementByDB:
         )
         return chat
 
-    def join(self, id):
-        chat_room = ChatRoom.objects.get(id=id)
+    def join(self, id): # باید تست بشه
+        chat_room = ChatRoom.objects.filter(id=id).first()
         if not chat_room:
             return status.HTTP_404_NOT_FOUND
         if chat_room.is_public or chat_room.join_by_request:
@@ -40,33 +40,71 @@ class ChatManagementByDB:
             return status.HTTP_200_OK
         return status.HTTP_403_FORBIDDEN
 
-    def messages(self, id, page_size, page):
-        chat_room = ChatRoom.objects.get(id=id)
+    def messages(self, id, page_size, last_ms_id):
+        chat_room = ChatRoom.objects.filter(id=id).first()
         if not chat_room:
-            return status.HTTP_404_NOT_FOUND, None
-        messages = chat_room.messages.filter(is_deleted=False).order_by('-date')
+            data = {
+                'errors': {
+                    'fa': [
+                        'چت پیدا نشد !',
+                    ],
+                    'en': [
+                        'chat not found !',
+                    ]
+                }
+            }
+            return status.HTTP_404_NOT_FOUND, data
+
+        if not Participant.objects.filter(chat=chat_room, user=self.user).exists():
+            data = {
+                'errors': {
+                    'fa': [
+                        'شما به این چت دسترسی ندارید !',
+                    ],
+                    'en': [
+                        'You do not have access to this chat !',
+                    ]
+                }
+            }
+            return status.HTTP_403_FORBIDDEN, data
+        messages = chat_room.messages.filter(is_deleted=False)
         if messages is not None:
-            serializer = MessageSerializer(messages, many=True)
-            return status.HTTP_200_OK, self.paginate_queryset(serializer.data, page_size, page)
+            messages = self.paginate_queryset(messages, page_size, last_ms_id)
+            if not messages[0]:
+                data = {
+                    'errors': {
+                        'fa': [
+                            'پیام پیدا نشد !',
+                        ],
+                        'en': [
+                            'message not found !',
+                        ]
+                    }
+                }
+                return status.HTTP_404_NOT_FOUND, data
+            serializer = MessageSerializer(messages[1], many=True)
+            return status.HTTP_200_OK, serializer.data
         return status.HTTP_204_NO_CONTENT, None
 
-    def paginate_queryset(self, queryset, page_size, page):
-        page_count = len(queryset) // page_size + (1 if len(queryset) % page_size > 0 else 0)
-        n = 0
-        n2 = 0
-        l = []
-        while n < page_count:
-            l2 = []
-            n3 = 0
-            while n3 < page_size:
-                if n2 == len(queryset) - 1:
-                    break
-                l2.append(queryset[n2])
-                n2 += 1
-                n3 += 1
-            l.append(l2)
-            l2 = []
-            n += 1
-        if page >= len(l):
-            return False, 'out of range'
-        return True, l[page + 1]
+    def paginate_queryset(self, queryset, page_size, last_ms_id=None):
+        """
+        صفحه‌بندی بهینه پیام‌ها با یک کوئری
+        """
+        if last_ms_id:
+            try:
+                last_msg = queryset.only('id', 'date').get(id=last_ms_id)
+            except queryset.model.DoesNotExist:
+                return False, None
+
+            messages = (
+                queryset
+                .filter(
+                    Q(date__lt=last_msg.date) |
+                    Q(date=last_msg.date, id__lt=last_msg.id)
+                )
+                .order_by('-date', '-id')[:page_size]
+            )
+        else:
+            messages = queryset.order_by('-date', '-id')[:page_size]
+
+        return True, messages

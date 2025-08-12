@@ -5,16 +5,16 @@ from .models import (
     MessageView, StickerUsage, GIFUsage,
     UserStickerCollection, AdminLog
 )
+from authentication.serializers import UserViewSerializer
 
-
-class UserSerializer(serializers.ModelSerializer):
-    online_status = serializers.BooleanField(read_only=True)
-    last_seen = serializers.DateTimeField(read_only=True)
-
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'first_name', 'last_name',
-                  'avatar', 'online_status', 'last_seen']
+# class UserSerializer(serializers.ModelSerializer):
+#     online_status = serializers.BooleanField(read_only=True)
+#     last_seen = serializers.DateTimeField(read_only=True)
+#
+#     class Meta:
+#         model = User
+#         fields = ['id', 'username', 'first_name', 'last_name',
+#                   'avatar', 'online_status', 'last_seen']
 
 
 class StickerSerializer(serializers.ModelSerializer):
@@ -26,7 +26,7 @@ class StickerSerializer(serializers.ModelSerializer):
 
 class StickerPackSerializer(serializers.ModelSerializer):
     stickers = StickerSerializer(many=True, read_only=True)
-    creator = UserSerializer(read_only=True)
+    creator = UserViewSerializer(read_only=True)
     is_added = serializers.SerializerMethodField()
 
     class Meta:
@@ -52,7 +52,7 @@ class GIFSerializer(serializers.ModelSerializer):
 
 
 class ChatRoomSerializer(serializers.ModelSerializer):
-    creator = UserSerializer(read_only=True)
+    creator = UserViewSerializer(read_only=True)
     participants_count = serializers.IntegerField(source='member_count', read_only=True)
     unread_count = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
@@ -78,7 +78,7 @@ class ChatRoomSerializer(serializers.ModelSerializer):
 
 
 class ParticipantSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
+    user = UserViewSerializer(read_only=True)
     permissions = serializers.ListField(child=serializers.CharField(), required=False)
 
     class Meta:
@@ -89,10 +89,10 @@ class ParticipantSerializer(serializers.ModelSerializer):
 
 
 class MessageSerializer(serializers.ModelSerializer):
-    sender = UserSerializer(read_only=True)
+    sender = UserViewSerializer(read_only=True)
     parent = serializers.PrimaryKeyRelatedField(queryset=Message.objects.all(), allow_null=True)
     reactions = serializers.SerializerMethodField()
-    is_viewed = serializers.SerializerMethodField()
+    # is_viewed = serializers.SerializerMethodField()
     sticker = StickerSerializer(read_only=True)
     gif = GIFSerializer(read_only=True)
 
@@ -101,20 +101,20 @@ class MessageSerializer(serializers.ModelSerializer):
         fields = ['id', 'chat', 'sender', 'message_type', 'text', 'caption',
                   'media_file', 'media_thumbnail', 'sticker', 'gif', 'parent',
                   'is_pinned', 'is_edited', 'edit_date', 'views', 'forwards',
-                  'date', 'has_spoiler', 'reactions', 'is_viewed']
+                  'date', 'has_spoiler', 'reactions']
 
     def get_reactions(self, obj):
         return MessageReactionSerializer(
             obj.reactions.all(), many=True
         ).data
 
-    def get_is_viewed(self, obj):
-        user = self.context['request'].user
-        return obj.views.filter(user=user).exists()
+    # def get_is_viewed(self, obj):
+    #     user = self.context['request'].user
+    #     return obj.views.filter(user=user).exists()
 
 
 class MessageReactionSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
+    user = UserViewSerializer(read_only=True)
 
     class Meta:
         model = MessageReaction
@@ -122,8 +122,8 @@ class MessageReactionSerializer(serializers.ModelSerializer):
 
 
 class AdminLogSerializer(serializers.ModelSerializer):
-    actor = UserSerializer(read_only=True)
-    target_user = UserSerializer(read_only=True)
+    actor = UserViewSerializer(read_only=True)
+    target_user = UserViewSerializer(read_only=True)
 
     class Meta:
         model = AdminLog
