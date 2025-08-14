@@ -259,6 +259,14 @@ class ChatRoom(models.Model):
 
     def __str__(self):
         return f"{self.get_type_display()}: {self.name}"
+    #
+    # @property
+    # def last_message_date(self):
+    #     message_date = self.messages.filter(is_deleted=False).order_by('-date').first()
+    #     if message_date:
+    #         return message_date.date
+    #     else:
+    #         return None
 
 
 class Participant(models.Model):
@@ -393,6 +401,7 @@ class Message(models.Model):
             models.Index(fields=['sticker']),
             models.Index(fields=['gif']),
         ]
+
     def __str__(self):
         return f"Message in {self.chat} by {self.sender or self.sender_chat}"
 

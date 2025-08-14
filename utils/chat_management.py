@@ -1,7 +1,9 @@
+from django.db.models.expressions import result
+
 from user.models import CustomUser
-from chat.models import ChatRoom, Participant
-from django.db.models import Q, Count
-from chat.serializers import ChatRoomSerializer, MessageSerializer
+from chat.models import ChatRoom, Participant, Message
+from django.db.models import Q, Count, OuterRef, Subquery
+from chat.serializers import ChatRoomSerializer, MessageSerializer, ChatRoomListSerializer
 from rest_framework import status
 
 
@@ -9,10 +11,84 @@ class ChatManagementByDB:
     def __init__(self, user: CustomUser):
         self.user = user
 
-    def get_chat_rooms(self):
+    def get_count_unread_ms(self, chatroom: ChatRoom) -> int:  # باید تست بشه
+        unread_count = Message.objects.filter(
+            chat=chatroom
+        ).exclude(
+            Q(sender=self.user) |
+            Q(message_views__user=self.user)
+        ).count()
+
+        return unread_count
+
+    def get_chat_rooms(self, page_size, last_chat_room_id=None, request=None):
+        def paginate_queryset(queryset, page_size, last_ms_id=None):
+            b = 0
+            queryset = list(queryset)
+            while b < len(queryset):
+                c = b + 1
+                while c < len(queryset):
+                    if queryset[c].last_message_date:
+                        if queryset[b].last_message_date:
+                            if queryset[c].last_message_date > queryset[b].last_message_date:
+                                queryset[b], queryset[c] = queryset[c], queryset[b]
+                        else:
+                            if queryset[c].last_message_date > queryset[b].updated_at:
+                                queryset[b], queryset[c] = queryset[c], queryset[b]
+                    else:
+                        if queryset[b].last_message_date:
+                            if queryset[c].updated_at > queryset[b].last_message_date:
+                                queryset[b], queryset[c] = queryset[c], queryset[b]
+                        else:
+                            if queryset[c].updated_at > queryset[b].updated_at:
+                                queryset[b], queryset[c] = queryset[c], queryset[b]
+                    c += 1
+                b += 1
+            result = []
+            if last_ms_id:
+                flag = False
+                for q in queryset:
+                    if q.id == last_ms_id:
+                        flag = True
+                        break
+                    if not flag:
+                        result.append(q)
+                if not flag:
+                    return False, None
+                if len(result) > page_size:
+                    result = result[len(result) - page_size:]
+            else:
+                if len(queryset) > page_size:
+                    result = queryset[len(queryset) - 1 - page_size:]
+                else:
+                    result = queryset
+            return True, result
+        last_message_subquery = Message.objects.filter(
+            chat=OuterRef('pk')
+        ).order_by('-date').values(
+            'text',
+            'date',
+            'sender__username',
+            'message_type'
+        )[:1]
         chat_rooms = ChatRoom.objects.filter(participants__user=self.user).distinct().annotate(
-            member_count=Count('participants', distinct=True)).order_by('-updated_at')
-        return chat_rooms
+            unread_count=Count('messages', distinct=True,
+                               filter=Q(~Q(messages__sender=self.user) & ~Q(messages__message_views__user=self.user))),
+            last_message_date=Subquery(last_message_subquery.values('date')),
+            last_message_text=Subquery(last_message_subquery.values('text')),
+            last_message_sender=Subquery(last_message_subquery.values('sender__username')),
+            last_message_type=Subquery(last_message_subquery.values('message_type'))
+        ).order_by('-last_message_date')
+        chat_rooms = paginate_queryset(chat_rooms, page_size, last_chat_room_id)
+        if not chat_rooms[0]:
+            return status.HTTP_404_NOT_FOUND, None
+        request.user = self.user
+        serializer = ChatRoomListSerializer(
+            chat_rooms[1],
+            many=True,
+            context={'request': request}  # مهم برای دسترسی به کاربر در سریالایزر
+        )
+        return status.HTTP_200_OK, serializer.data
 
     def create_gpy_chat_room(self, serializer: ChatRoomSerializer):
         chat = serializer.save(creator=self.user)
@@ -25,7 +101,7 @@ class ChatManagementByDB:
         )
         return chat
 
-    def join(self, id): # باید تست بشه
+    def join(self, id):  # باید تست بشه
         chat_room = ChatRoom.objects.filter(id=id).first()
         if not chat_room:
             return status.HTTP_404_NOT_FOUND

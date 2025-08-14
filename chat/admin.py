@@ -15,3 +15,8 @@ class ChatRoomAdmin(admin.ModelAdmin):
 @admin.register(Participant)
 class ParticipantAdmin(admin.ModelAdmin):
     list_display = ['id', 'user', 'chat', 'role']
+
+
+@admin.register(MessageView)
+class MessageViewAdmin(admin.ModelAdmin):
+    list_display = ['id', 'message', 'user', 'view_date']

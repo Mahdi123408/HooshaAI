@@ -156,3 +156,122 @@ class MessageAPIView(APIView):
         return Response(messages[1], status=messages[0])
 
 
+class ChatRoomAPIView(APIView):
+
+    @swagger_auto_schema(
+        operation_description="برگرداندن چت روم های کاربر .",
+        manual_parameters=[
+            openapi.Parameter(
+                CUSTOM_ACCESS_TOKEN_NAME,
+                openapi.IN_HEADER,
+                description="توکن احراز هویت کاربر",
+                type=openapi.TYPE_STRING,
+                required=True
+            ),
+        ],
+        responses={
+            400: openapi.Response(
+                description="مشکلی در احراز هویت و اکسس توکن کاربر\nاگه Access Token Required اومد اطلاعات درست ارسال نشده\nاگه Invalid token اومد توکن اشتباهه\nاگه Token expired اومد توکن منقضی شده",
+                examples={
+                    "application/json": "Access Token Required"
+                }
+            ),
+            200:
+                openapi.Response(
+                    description="اطلاعات یوزر . ",
+                    examples={
+                        "application/json": {
+                            "user": {
+                                "username": "mahdi_abbasi_from_api",
+                                "email": "abasimahdi253@gmail.com",
+                                "full_name": "مهدی عباسی",
+                                "phone": "09055601501",
+                                "role": "normal",
+                                "ivt_balance": 0,
+                                "wallet_address": "ohvajoi",
+                                "rating": 0,
+                                "level": 0,
+                                "cover_url": None,
+                                "avatar_url": None,
+                                "telegram_id": None,
+                                "instagram_id": None,
+                                "points": 0,
+                                "created_at": "2024-06-12T03:39:25.591550+03:30",
+                                "updated_at": "2024-06-12T04:04:27.128266+03:30"
+                            }
+                        }
+                    }
+
+                )
+        },
+    )
+    def get(self, request: HttpRequest, page_size, last_chat_room_id=None):
+        user = auth.get_authenticated_user_from_request(request)
+        if not user:
+            data = {
+                'errors': {
+                    'fa': [
+                        'نشست شما اعتبار ندارد مجددا وارد شوید!',
+                    ],
+                    'en': [
+                        'Your session is invalid. Please log in again!',
+                    ]
+                }
+            }
+            return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
+        chat = ChatManagementByDB(user)
+        try:
+            page_size = int(page_size)
+            if page_size <= 0:
+                data = {
+                    'errors': {
+                        'fa': [
+                            'تعداد چت مورد درخواست باید مثبت باشد !',
+                        ],
+                        'en': [
+                            'page_size must be greater than 0 !',
+                        ]
+                    }
+                }
+                return Response(data, status=status.HTTP_400_BAD_REQUEST)
+        except ValueError:
+            data = {
+                'errors': {
+                    'fa': [
+                        'تعداد چت مورد درخواست باید عدد صحیح باشد !',
+                    ],
+                    'en': [
+                        'page_size must be an integer !',
+                    ]
+                }
+            }
+            return Response(data, status=status.HTTP_400_BAD_REQUEST)
+        if last_chat_room_id is not None:
+            try:
+                last_chat_room_id = int(last_chat_room_id)
+                if last_chat_room_id <= 0:
+                    data = {
+                        'errors': {
+                            'fa': [
+                                'آیدی آخرین چت مورد درخواست باید مثبت باشد !',
+                            ],
+                            'en': [
+                                'last_chat_room_id must be greater than 0 !',
+                            ]
+                        }
+                    }
+                    return Response(data, status=status.HTTP_400_BAD_REQUEST)
+            except ValueError:
+                data = {
+                    'errors': {
+                        'fa': [
+                            'آیدی آخرین چت مورد درخواست باید عدد صحیح باشد !',
+                        ],
+                        'en': [
+                            'last_chat_room_id must be an integer !',
+                        ]
+                    }
+                }
+                return Response(data, status=status.HTTP_400_BAD_REQUEST)
+        chat_rooms = chat.get_chat_rooms(page_size, last_chat_room_id, request)
+        return Response(chat_rooms[1], status=chat_rooms[0])

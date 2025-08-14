@@ -1,3 +1,4 @@
+from pyexpat.errors import messages
 from rest_framework import serializers
 from .models import (
     User, ChatRoom, Participant, Message,
@@ -5,7 +6,10 @@ from .models import (
     MessageView, StickerUsage, GIFUsage,
     UserStickerCollection, AdminLog
 )
+from user.models import CustomUser
 from authentication.serializers import UserViewSerializer
+from django.utils import timezone
+from datetime import timedelta
 
 # class UserSerializer(serializers.ModelSerializer):
 #     online_status = serializers.BooleanField(read_only=True)
@@ -137,4 +141,124 @@ class StickerUsageSerializer(serializers.ModelSerializer):
         model = StickerUsage
         fields = ['id', 'sticker', 'chat', 'usage_date']
 
-# سریالایزرهای مشابه برای سایر مدل‌ها
+
+class LastMessageSerializer(serializers.Serializer):
+    text = serializers.SerializerMethodField()
+    date = serializers.DateTimeField(source='last_message_date')
+    sender = serializers.SerializerMethodField()
+    sender_avatar = serializers.SerializerMethodField()
+    type = serializers.CharField(source='last_message_type')
+    is_media = serializers.SerializerMethodField()
+
+    def get_text(self, obj):
+        """خلاصه‌سازی متن بر اساس نوع پیام"""
+        if obj.last_message_type != 'text':
+            return self._get_media_summary(obj.last_message_type)
+        return obj.last_message_text[:40] + '...' if len(obj.last_message_text) > 40 else obj.last_message_text
+
+    def get_sender(self, obj):
+        """نام فرستنده یا 'شما' اگر خود کاربر باشد"""
+        if obj.last_message_sender == self.context['request'].user:
+            return {
+                'en':'you',
+                'fa': 'شما'
+            }
+        return obj.last_message_sender
+
+    def get_sender_avatar(self, obj):
+        """آدرس آواتار فرستنده"""
+        if obj.last_message_sender:
+            user = CustomUser.objects.filter(username=obj.last_message_sender, is_active=True).first()
+            if user and user.avatar_url:
+                return user.avatar_url.url
+        return None
+
+    def get_is_media(self, obj):
+        """آیا پیام از نوع رسانه است؟"""
+        return obj.last_message_type not in ['text', 'poll']
+
+    def _get_media_summary(self, msg_type):
+        """توضیح خلاصه برای انواع رسانه"""
+        media_types = {
+            'photo': {'fa':'📷 عکس', 'en':'photo 📷'},
+            'video': {'fa':'🎬 ویدیو', 'en':'video 🎬'},
+            'voice': {'fa':'🎧 پیام صوتی', 'en':'voice 🎧'},
+            'sticker': {'fa':'🖼️ استیکر', 'en':'sticker 🖼️'},
+            'gif': 'GIF',
+            'document': {'fa':'📄 سند', 'en':'document 📄️'},
+            'contact': {'fa':'👤 مخاطب', 'en':'contact 👤️'},
+        }
+        return media_types.get(msg_type, {'fa':'پیام', 'en':'message'})
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        # بررسی وجود پیام
+        has_messages = Message.objects.filter(
+            chat__id=instance.id,
+            is_deleted=False
+        ).exists()
+
+        if not has_messages:
+            data = None
+
+        return data
+
+
+class ChatRoomListSerializer(serializers.ModelSerializer):
+    member_count = serializers.IntegerField()
+    unread_count = serializers.IntegerField()
+    last_message = LastMessageSerializer(source='*')
+    is_online = serializers.SerializerMethodField()
+    is_group = serializers.SerializerMethodField()
+    other_user = serializers.SerializerMethodField()  # فقط برای چت‌های خصوصی
+
+    class Meta:
+        model = ChatRoom
+        fields = [
+            'id',
+            'name',
+            'type',
+            'avatar',
+            'member_count',
+            'unread_count',
+            'last_message',
+            'is_online',
+            'is_group',
+            'other_user',  # اطلاعات کاربر مقابل در چت خصوصی
+            'updated_at'
+        ]
+
+    def get_is_online(self, obj):
+        """بررسی آنلاین بودن آخرین فرستنده"""
+        if not hasattr(obj, 'last_message_sender') or not obj.last_message_sender:
+            return False
+        user = CustomUser.objects.filter(username=obj.last_message_sender, is_active=True).first()
+        if not user:
+            return False
+        return user.is_online
+
+    def get_is_group(self, obj):
+        """آیا چت روم یک گروه است؟"""
+        return obj.type in ['GP', 'CH', 'BC']
+
+    def get_other_user(self, obj):
+        """اطلاعات کاربر مقابل در چت خصوصی"""
+        if obj.type != 'PV':
+            return None
+
+        request = self.context.get('request')
+        if not request or not request.user:
+            return None
+
+        # پیدا کردن کاربر مقابل در چت خصوصی
+        other_user = obj.participants.exclude(user=request.user).first()
+        if not other_user:
+            return None
+
+        return {
+            'id': other_user.user.id,
+            'username': other_user.user.username,
+            'full_name': other_user.user.full_name,
+            'avatar': other_user.user.avatar_url.url if other_user.user.avatar_url else None
+        }

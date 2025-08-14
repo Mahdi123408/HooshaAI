@@ -16,6 +16,8 @@ class CustomUser(models.Model):
     avatar_url = models.ImageField(upload_to='avatars', null=True, blank=True)
     role = models.ForeignKey(Role, on_delete=models.PROTECT, related_name='users', verbose_name='user role')
     is_active = models.BooleanField(default=True)
+    is_online = models.BooleanField(default=False)
+    last_seen = models.DateTimeField(default=timezone.now)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -37,3 +39,7 @@ class CustomUser(models.Model):
         from authentication.models import RefreshToken
         now = timezone.now()
         return RefreshToken.objects.filter(user=self, expires_at__gt=now).count()
+
+    def update_last_seen(self):
+        self.last_seen = timezone.now()
+        self.save()

@@ -7,3 +7,11 @@ class AccessTokenAdmin(admin.ModelAdmin):
 
     def at_token(self, obj):
         return obj.token[:8] + ' ... .'
+
+
+@admin.register(RefreshToken)
+class RefreshTokenAdmin(admin.ModelAdmin):
+    list_display = ['id', 'rt_token', 'created_at', 'expires_at', 'token_type', 'user', 'token_id']
+
+    def rt_token(self, obj):
+        return obj.token[:8] + ' ... .'
