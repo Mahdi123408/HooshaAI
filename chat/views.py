@@ -277,7 +277,7 @@ class ChatRoomAPIView(APIView):
         return Response(chat_rooms[1], status=chat_rooms[0])
 
     @swagger_auto_schema(
-        operation_description="عضو شدن کابر در یک چت روم .",
+        operation_description="عضو شدن کابر در یک چت روم توسط خودش یعنی یا باید پابلیک باشه یا لینک دعوت داشته باشه .",
         manual_parameters=[
             openapi.Parameter(
                 CUSTOM_ACCESS_TOKEN_NAME,
@@ -287,14 +287,6 @@ class ChatRoomAPIView(APIView):
                 required=True
             ),
         ],
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                'chat_id': openapi.Schema(type=openapi.TYPE_NUMBER, description='آیدی چت',
-                                           default=1),
-            },
-            required=['chat_id']
-        ),
         responses={
             400: openapi.Response(
                 description="مشکلی در احراز هویت و اکسس توکن کاربر\nاگه Access Token Required اومد اطلاعات درست ارسال نشده\nاگه Invalid token اومد توکن اشتباهه\nاگه Token expired اومد توکن منقضی شده",
