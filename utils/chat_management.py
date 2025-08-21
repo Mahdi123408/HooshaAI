@@ -63,6 +63,7 @@ class ChatManagementByDB:
                 else:
                     result = queryset
             return True, result
+
         last_message_subquery = Message.objects.filter(
             chat=OuterRef('pk')
         ).order_by('-date').values(
@@ -101,20 +102,34 @@ class ChatManagementByDB:
         )
         return chat
 
-    def join(self, id):  # باید تست بشه
+    def join(self, id, join_hash=None):
         chat_room = ChatRoom.objects.filter(id=id).first()
         if not chat_room:
-            return status.HTTP_404_NOT_FOUND
-        if chat_room.is_public or chat_room.join_by_request:
+            data = {
+                'errors': {
+                    'fa': [
+                        'چت پیدا نشد !',
+                    ],
+                    'en': [
+                        'chat not found !',
+                    ]
+                }
+            }
+            return status.HTTP_404_NOT_FOUND, data
+        if chat_room.is_public or chat_room.join_by_request and chat_room.invite_link == join_hash:
+
             participant, created = Participant.objects.get_or_create(
                 chat=chat_room,
                 user=self.user,
                 defaults={'role': 'ME'}
             )
             if created:
-                return status.HTTP_201_CREATED
-            return status.HTTP_200_OK
-        return status.HTTP_403_FORBIDDEN
+                return status.HTTP_201_CREATED, None
+            return status.HTTP_200_OK, None
+        return status.HTTP_403_FORBIDDEN, None
+
+    def add(self):  # تابعی برای اضافه کردن کاربران به گروه یا چنل ( چون توی متد جوین یوزر درخواست میده که بپیونده و حتما باید یا پابلیک باشه اون چت یا باید لینک دعوت داشته باشه
+        ...
 
     def messages(self, id, page_size, last_ms_id):
         chat_room = ChatRoom.objects.filter(id=id).first()

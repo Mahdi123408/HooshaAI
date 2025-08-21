@@ -43,3 +43,13 @@ class CustomUser(models.Model):
     def update_last_seen(self):
         self.last_seen = timezone.now()
         self.save()
+
+
+class BlockUser(models.Model):
+    user = models.ForeignKey(CustomUser, related_name='blocked_users', on_delete=models.CASCADE)
+    blocked_user = models.ForeignKey(CustomUser, related_name='blocked_of_users', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f'{self.blocked_user.username} of {self.user.username}'

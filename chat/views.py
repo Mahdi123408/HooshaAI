@@ -275,3 +275,77 @@ class ChatRoomAPIView(APIView):
                 return Response(data, status=status.HTTP_400_BAD_REQUEST)
         chat_rooms = chat.get_chat_rooms(page_size, last_chat_room_id, request)
         return Response(chat_rooms[1], status=chat_rooms[0])
+
+    @swagger_auto_schema(
+        operation_description="عضو شدن کابر در یک چت روم .",
+        manual_parameters=[
+            openapi.Parameter(
+                CUSTOM_ACCESS_TOKEN_NAME,
+                openapi.IN_HEADER,
+                description="توکن احراز هویت کاربر",
+                type=openapi.TYPE_STRING,
+                required=True
+            ),
+        ],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'chat_id': openapi.Schema(type=openapi.TYPE_NUMBER, description='آیدی چت',
+                                           default=1),
+            },
+            required=['chat_id']
+        ),
+        responses={
+            400: openapi.Response(
+                description="مشکلی در احراز هویت و اکسس توکن کاربر\nاگه Access Token Required اومد اطلاعات درست ارسال نشده\nاگه Invalid token اومد توکن اشتباهه\nاگه Token expired اومد توکن منقضی شده",
+                examples={
+                    "application/json": "Access Token Required"
+                }
+            ),
+            200:
+                openapi.Response(
+                    description="اطلاعات یوزر . ",
+                    examples={
+                        "application/json": {
+                            "user": {
+                                "username": "mahdi_abbasi_from_api",
+                                "email": "abasimahdi253@gmail.com",
+                                "full_name": "مهدی عباسی",
+                                "phone": "09055601501",
+                                "role": "normal",
+                                "ivt_balance": 0,
+                                "wallet_address": "ohvajoi",
+                                "rating": 0,
+                                "level": 0,
+                                "cover_url": None,
+                                "avatar_url": None,
+                                "telegram_id": None,
+                                "instagram_id": None,
+                                "points": 0,
+                                "created_at": "2024-06-12T03:39:25.591550+03:30",
+                                "updated_at": "2024-06-12T04:04:27.128266+03:30"
+                            }
+                        }
+                    }
+
+                )
+        },
+    )
+    def post(self, request: HttpRequest, id, join_hash=None):
+        user = auth.get_authenticated_user_from_request(request)
+        if not user:
+            data = {
+                'errors': {
+                    'fa': [
+                        'نشست شما اعتبار ندارد مجددا وارد شوید!',
+                    ],
+                    'en': [
+                        'Your session is invalid. Please log in again!',
+                    ]
+                }
+            }
+            return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
+        chat = ChatManagementByDB(user)
+        result = chat.join(id, join_hash)
+        return Response(data=result[1], status=result[0])
+

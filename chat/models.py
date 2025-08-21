@@ -269,6 +269,16 @@ class ChatRoom(models.Model):
     #         return None
 
 
+class BlockChat(models.Model):
+    chatroom = models.ForeignKey(ChatRoom, related_name='blocked_users', on_delete=models.CASCADE)
+    user = models.ForeignKey(CustomUser, related_name='blocked_of_chats', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f'{self.user.username} of {self.chatroom.name}'
+
+
 class Participant(models.Model):
     """مدل شرکت‌کنندگان با سطوح دسترسی پیشرفته"""
 
