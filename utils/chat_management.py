@@ -103,7 +103,7 @@ class ChatManagementByDB:
         return chat
 
     def join(self, id, join_hash=None):
-        chat_room = ChatRoom.objects.filter(id=id).first()
+        chat_room = ChatRoom.objects.filter(id=id).exclude(Q(type='PV')).first()
         if not chat_room:
             data = {
                 'errors': {
@@ -124,6 +124,8 @@ class ChatManagementByDB:
                 defaults={'role': 'ME'}
             )
             if created:
+                chat_room.member_count += 1
+                chat_room.save()
                 return status.HTTP_201_CREATED, None
             return status.HTTP_200_OK, None
         return status.HTTP_403_FORBIDDEN, None
