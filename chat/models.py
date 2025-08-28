@@ -246,7 +246,7 @@ class ChatRoom(models.Model):
     gif_search_enabled = models.BooleanField(default=True)
 
     # آمار
-    member_count = models.PositiveIntegerField(default=1)
+    member_count = models.PositiveIntegerField(default=0)
     message_count = models.PositiveBigIntegerField(default=0)
 
     class Meta:
@@ -324,7 +324,7 @@ class Participant(models.Model):
     can_send_gifs = models.BooleanField(default=True)
 
     # اطلاعات اضافی
-    custom_title = models.CharField(max_length=16, blank=True)
+    custom_title = models.CharField(max_length=16, blank=True, null=True)
 
     class Meta:
         unique_together = ('user', 'chat')

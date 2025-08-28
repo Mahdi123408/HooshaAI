@@ -14,4 +14,6 @@ urlpatterns = [
          name='chat-rooms-public-join-with-chat-room-id'),
     path('/chatrooms/join/<int:id>/<str:join_hash>', views.ChatRoomAPIView.as_view(),
          name='chat-rooms-private-join-with-chat-room-id-and-join-hash'),
+    path('/chatrooms/create/pv/<slug:username>', views.ChatRoomAPIView.as_view(),
+         name='chat-rooms-pv-create-with-username'),
 ]

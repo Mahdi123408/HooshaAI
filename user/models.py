@@ -17,6 +17,7 @@ class CustomUser(models.Model):
     role = models.ForeignKey(Role, on_delete=models.PROTECT, related_name='users', verbose_name='user role')
     is_active = models.BooleanField(default=True)
     is_online = models.BooleanField(default=False)
+    can_message_me = models.BooleanField(default=True)
     last_seen = models.DateTimeField(default=timezone.now)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -43,6 +44,15 @@ class CustomUser(models.Model):
     def update_last_seen(self):
         self.last_seen = timezone.now()
         self.save()
+
+    def to_dict(self):
+        data = {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'full_name': self.full_name,
+        }
+        return data
 
 
 class BlockUser(models.Model):

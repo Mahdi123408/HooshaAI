@@ -3,7 +3,8 @@ from django.db.models.expressions import result
 from user.models import CustomUser
 from chat.models import ChatRoom, Participant, Message
 from django.db.models import Q, Count, OuterRef, Subquery
-from chat.serializers import ChatRoomSerializer, MessageSerializer, ChatRoomListSerializer
+from chat.serializers import ChatRoomSerializer, MessageSerializer, ChatRoomListSerializer, ParticipantPVSerializer, \
+    ChatRoomCreateSerializer
 from rest_framework import status
 
 
@@ -54,7 +55,11 @@ class ChatManagementByDB:
                     if not flag:
                         result.append(q)
                 if not flag:
-                    return False, None
+                    print(queryset)
+                    if queryset[0].id - 1 == last_ms_id:
+                        result = [queryset[0], ]
+                    else:
+                        return False, None
                 if len(result) > page_size:
                     result = result[len(result) - page_size:]
             else:
@@ -128,6 +133,106 @@ class ChatManagementByDB:
                 chat_room.save()
                 return status.HTTP_201_CREATED, None
             return status.HTTP_200_OK, None
+        return status.HTTP_403_FORBIDDEN, None
+
+    def create_pv_chat_room(self, username, request):
+        to_user = CustomUser.objects.filter(username=username, is_active=True, can_message_me=True).first()
+        if not to_user:
+            data = {
+                'errors': {
+                    'fa': [
+                        'کاربر پیدا نشد !',
+                    ],
+                    'en': [
+                        'user not found !',
+                    ]
+                }
+            }
+            return status.HTTP_404_NOT_FOUND, data
+        chat_room = ChatRoom.objects.filter(
+            type='PV',
+            participants__user=self.user
+        ).filter(
+            participants__user=to_user
+        ).first()
+        if chat_room:
+            return status.HTTP_409_CONFLICT, None
+            # participant = Participant.objects.filter(user=self.user, chat__type='PV')
+            # if participant:
+            #
+            # if len(participant) == 2:
+            #     return status.HTTP_409_CONFLICT, None
+            # elif len(participant) == 1 and participant[0].user.id == self.user.id:
+            #     role = 'OW' if participant[0].role != 'OW' else 'ME'
+            #     data_p = {
+            #         'user': to_user,
+            #         'role': role,
+            #         'chat': chat_room
+            #     }
+            #     serializer_participant = ParticipantPVSerializer(data=data_p)
+            #     if serializer_participant.is_valid(raise_exception=True):
+            #         serializer_participant.save()
+            #         serializer = ParticipantPVSerializer(data=participant)
+            #         return status.HTTP_200_OK, serializer.validated_data
+            # elif len(participant) == 1 and participant[0].user.id == to_user.id:
+            #     role = 'OW' if participant[0].role != 'OW' else 'ME'
+            #     data_p = {
+            #         'user': self.user,
+            #         'role': role,
+            #         'chat': chat_room
+            #     }
+            #     serializer_participant = ParticipantPVSerializer(data=data_p)
+            #     if serializer_participant.is_valid(raise_exception=True):
+            #         serializer_participant.save()
+            #         serializer = ParticipantPVSerializer(data=participant)
+            #         return status.HTTP_200_OK, serializer.validated_data
+            # elif not participant:
+            #     data_p = [
+            #         {
+            #             'user': self.user,
+            #             'role': 'OW',
+            #             'chat': chat_room
+            #         },
+            #         {
+            #             'user': to_user,
+            #             'role': 'ME',
+            #             'chat': chat_room
+            #         }
+            #     ]
+            #     serializer_participant = ParticipantPVSerializer(data=data_p, many=True)
+            #     if serializer_participant.is_valid(raise_exception=True):
+            #         serializer_participant.save()
+            #         return status.HTTP_200_OK, serializer_participant.validated_data[1]
+            # else:
+            #     return status.HTTP_403_FORBIDDEN, None
+        data = {
+            'name': f'PV_{self.user.id}_to_{to_user.id}',
+            'description': f'PV_{self.user.id}_to_{to_user.id}',
+            'type': 'PV',
+            'creator': self.user,
+            'member_count': 2
+        }
+        request.user = self.user
+        serializer = ChatRoomCreateSerializer(data=data, context={'request': request})
+        if serializer.is_valid(raise_exception=True):
+            chat_room_new = serializer.save()
+            data_p = [
+                {
+                    'user': self.user.id,
+                    'role': 'OW',
+                    'chat': chat_room_new.id
+                },
+                {
+                    'user': to_user.id,
+                    'role': 'ME',
+                    'chat': chat_room_new.id
+                }
+            ]
+            serializer_participant = ParticipantPVSerializer(data=data_p, many=True)
+            if serializer_participant.is_valid(raise_exception=True):
+                serializer_participant.save()
+                result = self.get_chat_rooms(1, chat_room_new.id - 1, request)
+                return status.HTTP_201_CREATED, result[1]
         return status.HTTP_403_FORBIDDEN, None
 
     def add(self):  # تابعی برای اضافه کردن کاربران به گروه یا چنل ( چون توی متد جوین یوزر درخواست میده که بپیونده و حتما باید یا پابلیک باشه اون چت یا باید لینک دعوت داشته باشه

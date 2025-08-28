@@ -81,6 +81,9 @@ class ChatRoomSerializer(serializers.ModelSerializer):
         return None
 
 
+
+
+
 class ParticipantSerializer(serializers.ModelSerializer):
     user = UserViewSerializer(read_only=True)
     permissions = serializers.ListField(child=serializers.CharField(), required=False)
@@ -207,8 +210,8 @@ class LastMessageSerializer(serializers.Serializer):
 
 class ChatRoomListSerializer(serializers.ModelSerializer):
     member_count = serializers.IntegerField()
-    unread_count = serializers.IntegerField()
-    last_message = LastMessageSerializer(source='*')
+    unread_count = serializers.IntegerField(read_only=True)
+    last_message = LastMessageSerializer(source='*', read_only=True)
     is_online = serializers.SerializerMethodField()
     is_group = serializers.SerializerMethodField()
     other_user = serializers.SerializerMethodField()  # فقط برای چت‌های خصوصی
@@ -262,3 +265,62 @@ class ChatRoomListSerializer(serializers.ModelSerializer):
             'full_name': other_user.user.full_name,
             'avatar': other_user.user.avatar_url.url if other_user.user.avatar_url else None
         }
+
+class ChatRoomCreateSerializer(serializers.ModelSerializer):
+    member_count = serializers.IntegerField()
+    is_online = serializers.SerializerMethodField()
+    is_group = serializers.SerializerMethodField()
+    other_user = serializers.SerializerMethodField()  # فقط برای چت‌های خصوصی
+
+    class Meta:
+        model = ChatRoom
+        fields = [
+            'id',
+            'name',
+            'type',
+            'avatar',
+            'member_count',
+            'is_online',
+            'is_group',
+            'other_user',  # اطلاعات کاربر مقابل در چت خصوصی
+            'updated_at'
+        ]
+
+    def get_is_online(self, obj):
+        """بررسی آنلاین بودن آخرین فرستنده"""
+        if not hasattr(obj, 'last_message_sender') or not obj.last_message_sender:
+            return False
+        user = CustomUser.objects.filter(username=obj.last_message_sender, is_active=True).first()
+        if not user:
+            return False
+        return user.is_online
+
+    def get_is_group(self, obj):
+        """آیا چت روم یک گروه است؟"""
+        return obj.type in ['GP', 'CH', 'BC']
+
+    def get_other_user(self, obj):
+        """اطلاعات کاربر مقابل در چت خصوصی"""
+        if obj.type != 'PV':
+            return None
+
+        request = self.context.get('request')
+        if not request or not request.user:
+            return None
+
+        # پیدا کردن کاربر مقابل در چت خصوصی
+        other_user = obj.participants.exclude(user=request.user).first()
+        if not other_user:
+            return None
+
+        return {
+            'id': other_user.user.id,
+            'username': other_user.user.username,
+            'full_name': other_user.user.full_name,
+            'avatar': other_user.user.avatar_url.url if other_user.user.avatar_url else None
+        }
+
+class ParticipantPVSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Participant
+        fields = ['id', 'user', 'chat', 'role']

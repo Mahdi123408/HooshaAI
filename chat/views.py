@@ -388,6 +388,21 @@ class ChatRoomAPIView(APIView):
                 )
         },
     )
-    def post(self, request: HttpRequest):
-        ...
+    def post(self, request: HttpRequest, username):
+        user = auth.get_authenticated_user_from_request(request)
+        if not user:
+            data = {
+                'errors': {
+                    'fa': [
+                        'نشست شما اعتبار ندارد مجددا وارد شوید!',
+                    ],
+                    'en': [
+                        'Your session is invalid. Please log in again!',
+                    ]
+                }
+            }
+            return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
+        chat = ChatManagementByDB(user)
+        result = chat.create_pv_chat_room(username, request)
+        return Response(data=result[1], status=result[0])
 
