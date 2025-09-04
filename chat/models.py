@@ -1,11 +1,11 @@
-from django.db import models
+from django.db import models, transaction
 from django.contrib.auth import get_user_model
 from django.core.validators import MaxLengthValidator
 from django.utils import timezone
 import uuid
 from user.models import CustomUser
 import os
-
+from django.db.models import F
 User = CustomUser
 
 
@@ -217,8 +217,6 @@ class GIFTag(models.Model):
 
 
 class ChatRoom(models.Model):
-    """مدل اتاق چت با تمام ویژگی‌های پیشرفته"""
-
     TYPE_CHOICES = (
         ('PV', 'Private Chat'),
         ('GP', 'Group'),
@@ -226,7 +224,6 @@ class ChatRoom(models.Model):
         ('BC', 'Broadcast'),
     )
 
-    # اطلاعات پایه
     name = models.CharField(max_length=255)
     username = models.SlugField(max_length=32, unique=True, null=True, blank=True)
     description = models.TextField(blank=True)
@@ -235,19 +232,18 @@ class ChatRoom(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     avatar = models.ImageField(upload_to='chat_avatars/', null=True, blank=True)
-
-    # تنظیمات حریم خصوصی
     is_public = models.BooleanField(default=False)
     invite_link = models.CharField(max_length=50, unique=True, null=True, blank=True)
     join_by_request = models.BooleanField(default=False)
-
-    # تنظیمات رسانه
-    sticker_set = models.ForeignKey(StickerPack, null=True, blank=True, on_delete=models.SET_NULL)
+    sticker_set = models.ForeignKey('StickerPack', null=True, blank=True, on_delete=models.SET_NULL)
     gif_search_enabled = models.BooleanField(default=True)
 
-    # آمار
     member_count = models.PositiveIntegerField(default=0)
     message_count = models.PositiveBigIntegerField(default=0)
+    last_message = models.ForeignKey('Message', null=True, blank=True, on_delete=models.SET_NULL,
+                                     related_name='last_in_chats')
+    last_message_date = models.DateTimeField(null=True, blank=True)
+    last_sequence = models.BigIntegerField(default=0)
 
     class Meta:
         indexes = [
@@ -257,16 +253,11 @@ class ChatRoom(models.Model):
         ]
         ordering = ['-updated_at']
 
-    def __str__(self):
-        return f"{self.get_type_display()}: {self.name}"
-    #
-    # @property
-    # def last_message_date(self):
-    #     message_date = self.messages.filter(is_deleted=False).order_by('-date').first()
-    #     if message_date:
-    #         return message_date.date
-    #     else:
-    #         return None
+    def update_last_message(self):
+        last_msg = self.messages.filter(is_deleted=False).order_by('-sequence_number').first()
+        self.last_message = last_msg
+        self.last_message_date = last_msg.date if last_msg else None
+        self.save(update_fields=['last_message', 'last_message_date'])
 
 
 class BlockChat(models.Model):
@@ -280,8 +271,6 @@ class BlockChat(models.Model):
 
 
 class Participant(models.Model):
-    """مدل شرکت‌کنندگان با سطوح دسترسی پیشرفته"""
-
     ROLE_CHOICES = (
         ('OW', 'Owner'),
         ('AD', 'Admin'),
@@ -291,39 +280,18 @@ class Participant(models.Model):
         ('BA', 'Banned'),
     )
 
-    PERMISSION_CHOICES = (
-        ('change_info', 'تغییر اطلاعات گروه'),
-        ('post_messages', 'ارسال پیام'),
-        ('edit_messages', 'ویرایش پیام‌ها'),
-        ('delete_messages', 'حذف پیام‌ها'),
-        ('ban_users', 'مسدود کردن کاربران'),
-        ('invite_users', 'دعوت کاربران'),
-        ('pin_messages', 'سنجاق کردن پیام‌ها'),
-        ('add_admins', 'اضافه کردن ادمین'),
-        ('anonymous', 'ارسال ناشناس'),
-        ('manage_call', 'مدیریت تماس‌ها'),
-        ('manage_stickers', 'مدیریت استیکرها'),
-        ('post_gifs', 'ارسال گیف'),
-    )
-
     user = models.ForeignKey(User, related_name='participations', on_delete=models.CASCADE)
     chat = models.ForeignKey(ChatRoom, related_name='participants', on_delete=models.CASCADE)
     role = models.CharField(max_length=2, choices=ROLE_CHOICES, default='ME')
     joined_date = models.DateTimeField(auto_now_add=True)
     until_date = models.DateTimeField(null=True, blank=True)
-
-    # دسترسی‌های سفارشی برای ادمین‌ها
     permissions = models.JSONField(default=list)
-
-    # محدودیت‌ها
     is_muted = models.BooleanField(default=False)
     can_send_messages = models.BooleanField(default=True)
     can_send_media = models.BooleanField(default=True)
     can_send_polls = models.BooleanField(default=True)
     can_send_stickers = models.BooleanField(default=True)
     can_send_gifs = models.BooleanField(default=True)
-
-    # اطلاعات اضافی
     custom_title = models.CharField(max_length=16, blank=True, null=True)
 
     class Meta:
@@ -333,13 +301,19 @@ class Participant(models.Model):
             models.Index(fields=['chat', 'role']),
         ]
 
-    def __str__(self):
-        return f"{self.user} in {self.chat} as {self.get_role_display()}"
+    def save(self, *args, **kwargs):
+        is_new = self._state.adding
+        super().save(*args, **kwargs)
+        if is_new:
+            ChatRoom.objects.filter(pk=self.chat_id).update(member_count=F('member_count') + 1)
+
+    def delete(self, *args, **kwargs):
+        chat_id = self.chat_id
+        super().delete(*args, **kwargs)
+        ChatRoom.objects.filter(pk=chat_id).update(member_count=F('member_count') - 1)
 
 
 class Message(models.Model):
-    """مدل پیام با پشتیبانی کامل از استیکر، گیف و رسانه"""
-
     TYPE_CHOICES = (
         ('text', 'Text'),
         ('photo', 'Photo'),
@@ -359,24 +333,20 @@ class Message(models.Model):
 
     chat = models.ForeignKey(ChatRoom, related_name='messages', on_delete=models.CASCADE)
     sender = models.ForeignKey(User, related_name='messages', on_delete=models.SET_NULL, null=True)
-    sender_chat = models.ForeignKey(ChatRoom, related_name='channel_messages', on_delete=models.SET_NULL, null=True,
-                                    blank=True)
+    sender_chat = models.ForeignKey(ChatRoom, related_name='channel_messages', on_delete=models.SET_NULL,
+                                    null=True, blank=True)
 
-    # محتوای پیام
     message_type = models.CharField(max_length=10, choices=TYPE_CHOICES, default='text')
     text = models.TextField(blank=True, validators=[MaxLengthValidator(4096)])
     caption = models.TextField(blank=True, validators=[MaxLengthValidator(1024)])
     entities = models.JSONField(default=list)
-
-    # رسانه
     media_file = models.FileField(upload_to='chat_media/', null=True, blank=True)
     media_thumbnail = models.ImageField(upload_to='chat_thumbnails/', null=True, blank=True)
+    sticker = models.ForeignKey('Sticker', null=True, blank=True, on_delete=models.SET_NULL)
+    gif = models.ForeignKey('GIF', null=True, blank=True, on_delete=models.SET_NULL)
 
-    # استیکر و گیف
-    sticker = models.ForeignKey(Sticker, null=True, blank=True, on_delete=models.SET_NULL)
-    gif = models.ForeignKey(GIF, null=True, blank=True, on_delete=models.SET_NULL)
-
-    # ویژگی‌های پیام
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    sequence_number = models.BigIntegerField(default=0)
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='replies')
     is_pinned = models.BooleanField(default=False)
     is_edited = models.BooleanField(default=False)
@@ -386,22 +356,19 @@ class Message(models.Model):
     forward_from = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL,
                                      related_name='forwarded_messages')
 
-    # زمان‌ها
     date = models.DateTimeField(auto_now_add=True)
     scheduled_date = models.DateTimeField(null=True, blank=True)
-
-    # تنظیمات پیام
     has_spoiler = models.BooleanField(default=False)
     is_silent = models.BooleanField(default=False)
     via_bot = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='bot_messages')
 
-    # وضعیت پیام
     is_deleted = models.BooleanField(default=False)
     deleted_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL,
                                    related_name='deleted_messages')
     delete_date = models.DateTimeField(null=True, blank=True)
 
     class Meta:
+        unique_together = ('chat', 'sequence_number')
         ordering = ['-date', '-id']
         indexes = [
             models.Index(fields=['chat', 'date', 'id']),
@@ -412,27 +379,26 @@ class Message(models.Model):
             models.Index(fields=['gif']),
         ]
 
-    def __str__(self):
-        return f"Message in {self.chat} by {self.sender or self.sender_chat}"
-
     def save(self, *args, **kwargs):
-        """به‌روزرسانی خودکار نوع پیام بر اساس محتوا"""
+        is_new = self._state.adding
+
         if self.sticker:
             self.message_type = 'sticker'
         elif self.gif:
             self.message_type = 'gif'
-        super().save(*args, **kwargs)
 
-    def increment_view_count(self, user):
-        """افزایش تعداد مشاهده پیام"""
-        self.views += 1
-        self.save()
-        MessageView.objects.get_or_create(message=self, user=user)
-
-    def increment_forward_count(self):
-        """افزایش تعداد فوروارد"""
-        self.forwards += 1
-        self.save()
+        if is_new:
+            with transaction.atomic():
+                chat = ChatRoom.objects.select_for_update().get(pk=self.chat_id)
+                chat.last_sequence += 1
+                self.sequence_number = chat.last_sequence
+                super().save(*args, **kwargs)
+                chat.last_message = self
+                chat.last_message_date = self.date
+                chat.message_count = F('message_count') + 1
+                chat.save(update_fields=['last_sequence', 'last_message', 'last_message_date', 'message_count'])
+        else:
+            super().save(*args, **kwargs)
 
 
 class MessageReaction(models.Model):

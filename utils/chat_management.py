@@ -3,6 +3,9 @@ from django.db.models.expressions import result
 from user.models import CustomUser
 from chat.models import ChatRoom, Participant, Message
 from django.db.models import Q, Count, OuterRef, Subquery
+from django.db.models.functions import Coalesce
+
+
 from chat.serializers import ChatRoomSerializer, MessageSerializer, ChatRoomListSerializer, ParticipantPVSerializer, \
     ChatRoomCreateSerializer
 from rest_framework import status
@@ -69,22 +72,18 @@ class ChatManagementByDB:
                     result = queryset
             return True, result
 
-        last_message_subquery = Message.objects.filter(
-            chat=OuterRef('pk')
-        ).order_by('-date').values(
-            'text',
-            'date',
-            'sender__username',
-            'message_type'
-        )[:1]
-        chat_rooms = ChatRoom.objects.filter(participants__user=self.user).distinct().annotate(
-            unread_count=Count('messages', distinct=True,
-                               filter=Q(~Q(messages__sender=self.user) & ~Q(messages__message_views__user=self.user))),
-            last_message_date=Subquery(last_message_subquery.values('date')),
-            last_message_text=Subquery(last_message_subquery.values('text')),
-            last_message_sender=Subquery(last_message_subquery.values('sender__username')),
-            last_message_type=Subquery(last_message_subquery.values('message_type'))
-        ).order_by('-last_message_date')
+
+
+        chat_rooms = ChatRoom.objects.filter(
+            participants__user=self.user
+        ).distinct().annotate(
+            unread_count=Count(
+                'messages',
+                distinct=True,
+                filter=Q(~Q(messages__sender=self.user) & ~Q(messages__message_views__user=self.user))
+            ),
+            effective_order_date=Coalesce('last_message_date', 'updated_at')
+        ).select_related('last_message', 'last_message__sender').order_by('-effective_order_date')
         chat_rooms = paginate_queryset(chat_rooms, page_size, last_chat_room_id)
         if not chat_rooms[0]:
             return status.HTTP_404_NOT_FOUND, None
