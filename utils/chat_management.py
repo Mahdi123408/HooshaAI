@@ -25,56 +25,9 @@ class ChatManagementByDB:
 
         return unread_count
 
+
     def get_chat_rooms(self, page_size, last_chat_room_id=None, request=None):
-        def paginate_queryset(queryset, page_size, last_ms_id=None):
-            b = 0
-            queryset = list(queryset)
-            while b < len(queryset):
-                c = b + 1
-                while c < len(queryset):
-                    if queryset[c].last_message_date:
-                        if queryset[b].last_message_date:
-                            if queryset[c].last_message_date > queryset[b].last_message_date:
-                                queryset[b], queryset[c] = queryset[c], queryset[b]
-                        else:
-                            if queryset[c].last_message_date > queryset[b].updated_at:
-                                queryset[b], queryset[c] = queryset[c], queryset[b]
-                    else:
-                        if queryset[b].last_message_date:
-                            if queryset[c].updated_at > queryset[b].last_message_date:
-                                queryset[b], queryset[c] = queryset[c], queryset[b]
-                        else:
-                            if queryset[c].updated_at > queryset[b].updated_at:
-                                queryset[b], queryset[c] = queryset[c], queryset[b]
-                    c += 1
-                b += 1
-            result = []
-            if last_ms_id:
-                flag = False
-                for q in queryset:
-                    if q.id == last_ms_id:
-                        flag = True
-                        break
-                    if not flag:
-                        result.append(q)
-                if not flag:
-                    print(queryset)
-                    if queryset[0].id - 1 == last_ms_id:
-                        result = [queryset[0], ]
-                    else:
-                        return False, None
-                if len(result) > page_size:
-                    result = result[len(result) - page_size:]
-            else:
-                if len(queryset) > page_size:
-                    result = queryset[len(queryset) - 1 - page_size:]
-                else:
-                    result = queryset
-            return True, result
-
-
-
-        chat_rooms = ChatRoom.objects.filter(
+        queryset = ChatRoom.objects.filter(
             participants__user=self.user
         ).distinct().annotate(
             unread_count=Count(
@@ -83,15 +36,34 @@ class ChatManagementByDB:
                 filter=Q(~Q(messages__sender=self.user) & ~Q(messages__message_views__user=self.user))
             ),
             effective_order_date=Coalesce('last_message_date', 'updated_at')
-        ).select_related('last_message', 'last_message__sender').order_by('-effective_order_date')
-        chat_rooms = paginate_queryset(chat_rooms, page_size, last_chat_room_id)
-        if not chat_rooms[0]:
+        ).select_related('last_message', 'last_message__sender')
+
+        if last_chat_room_id:
+            # گرفتن آخرین چت با annotate
+            try:
+                last_chat_room = ChatRoom.objects.filter(pk=last_chat_room_id).annotate(
+                    effective_order_date=Coalesce('last_message_date', 'updated_at')
+                ).get()
+                queryset = queryset.filter(
+                    Q(effective_order_date__gt=last_chat_room.effective_order_date) |
+                    Q(effective_order_date=last_chat_room.effective_order_date, id__gt=last_chat_room.id)
+                )
+            except ChatRoom.DoesNotExist:
+                # اگر آخرین چت پیدا نشد، ادامه از ابتدا
+                pass
+
+        queryset = queryset.order_by('-effective_order_date', '-id')
+
+        chat_rooms = list(queryset[:page_size])
+
+        if not chat_rooms:
             return status.HTTP_404_NOT_FOUND, None
+
         request.user = self.user
         serializer = ChatRoomListSerializer(
-            chat_rooms[1],
+            chat_rooms,
             many=True,
-            context={'request': request}  # مهم برای دسترسی به کاربر در سریالایزر
+            context={'request': request}
         )
         return status.HTTP_200_OK, serializer.data
 

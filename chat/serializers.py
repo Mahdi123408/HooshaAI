@@ -211,7 +211,7 @@ class LastMessageSerializer(serializers.Serializer):
 class ChatRoomListSerializer(serializers.ModelSerializer):
     member_count = serializers.IntegerField()
     unread_count = serializers.IntegerField(read_only=True)
-    last_message = LastMessageSerializer(source='*', read_only=True)
+    last_message = MessageSerializer( read_only=True)
     is_online = serializers.SerializerMethodField()
     is_group = serializers.SerializerMethodField()
     other_user = serializers.SerializerMethodField()  # فقط برای چت‌های خصوصی

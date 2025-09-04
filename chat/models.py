@@ -253,6 +253,9 @@ class ChatRoom(models.Model):
         ]
         ordering = ['-updated_at']
 
+    def __str__(self):
+        return self.name
+
     def update_last_message(self):
         last_msg = self.messages.filter(is_deleted=False).order_by('-sequence_number').first()
         self.last_message = last_msg
