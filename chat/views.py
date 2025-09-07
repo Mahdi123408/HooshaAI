@@ -58,7 +58,7 @@ class MessageAPIView(APIView):
                 )
         },
     )
-    def get(self, request: HttpRequest, chat_id, page_size, last_ms_id=None):
+    def get(self, request: HttpRequest, chat_id, page_size, from_sequence=None, to_sequence=None):
         user = auth.get_authenticated_user_from_request(request)
         if not user:
             data = {
@@ -125,14 +125,13 @@ class MessageAPIView(APIView):
                 }
             }
             return Response(data, status=status.HTTP_400_BAD_REQUEST)
-        if last_ms_id:
+        if from_sequence:
             try:
-                last_ms_id = int(last_ms_id)
-                if last_ms_id <= 0:
+                if from_sequence <= 0:
                     data = {
                         'errors': {
                             'fa': [
-                                'آیدی آخرین پیام مورد درخواست باید مثبت باشد !',
+                                'اعداد بازه مورد درخواست باید مثبت باشد !',
                             ],
                             'en': [
                                 'last_ms_id must be greater than 0 !',

@@ -4,8 +4,8 @@ from chat import views
 urlpatterns = [
     path('/<int:chat_id>/messages/<int:page_size>', views.MessageAPIView.as_view(), name='chat-messages'),
 
-    path('/<int:chat_id>/messages/<int:page_size>/<int:last_ms_id>', views.MessageAPIView.as_view(),
-         name='chat-messages-paginated-with-last-ms-id'),
+    path('/<int:chat_id>/messages/<int:page_size>/<int:from_sequence>/<int:to_sequence>', views.MessageAPIView.as_view(),
+         name='chat-messages-paginated-with-sequence-zone'),
     path('/chatrooms/<int:page_size>', views.ChatRoomAPIView.as_view(),
          name='chat-rooms'),
     path('/chatrooms/<int:page_size>/<int:last_chat_room_id>', views.ChatRoomAPIView.as_view(),
