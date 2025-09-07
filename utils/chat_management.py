@@ -25,7 +25,6 @@ class ChatManagementByDB:
 
         return unread_count
 
-
     def get_chat_rooms(self, page_size, last_chat_room_id=None, request=None):
         queryset = ChatRoom.objects.filter(
             participants__user=self.user
